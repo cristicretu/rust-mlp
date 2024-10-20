@@ -7,6 +7,7 @@ use std::{
 
 pub struct Value {
     data: f32,
+    grad: f32,
     _prev: HashSet<Value>,
     _op: Option<String>,
 }
@@ -31,7 +32,12 @@ impl Value {
             data,
             _prev: _children.into_iter().collect(),
             _op,
+            grad: 0.0,
         }
+    }
+
+    pub fn setGrad(&mut self, grad: f32) {
+        self.grad = grad;
     }
 }
 
@@ -73,14 +79,14 @@ impl ops::Sub<Value> for Value {
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Value({}", self.data)?;
+        write!(f, "Value({:.4}", self.data)?;
         if !self._prev.is_empty() {
             write!(f, ", prev=[")?;
             let mut iter = self._prev.iter();
             if let Some(first) = iter.next() {
-                write!(f, "{}", first.data)?;
+                write!(f, "{:.4}", first.data)?;
                 for value in iter {
-                    write!(f, ", {}", value.data)?;
+                    write!(f, ", {:.4}", value.data)?;
                 }
             }
             write!(f, "],")?;
@@ -90,6 +96,7 @@ impl fmt::Display for Value {
             " op={:?}",
             self._op.as_ref().unwrap_or(&"None".to_string()),
         )?;
+        write!(f, ", grad={:.4}", self.grad)?;
         write!(f, ")")
     }
 }

@@ -12,11 +12,15 @@ fn df(x: f32) -> f32 {
 }
 
 fn main() {
-    let mut a = Value::new(2.0, vec![], None);
-    let mut b = Value::new(-3.0, vec![], None);
-    let mut c = Value::new(10.0, vec![], None);
-    let mut d = a * b + c;
-    println!("d = {}", d);
+    let a = Value::new(2.0, vec![], None);
+    let b = Value::new(-3.0, vec![], None);
+    let c = Value::new(10.0, vec![], None);
+    let e = a * b;
+    let d = e + c;
+    let f = Value::new(-2.0, vec![], None);
+    let mut L = d * f;
+    L.setGrad(1.0);
+    println!("L = {}", L);
 
     // let xs = Array::linspace(-5.0, 5.0, 42);
     // let ys = xs.mapv(f);
