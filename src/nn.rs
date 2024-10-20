@@ -5,6 +5,7 @@ use std::{
     ops,
 };
 
+#[derive(Clone)]
 pub struct Value {
     data: f32,
     grad: f32,
@@ -27,17 +28,23 @@ impl Hash for Value {
 }
 
 impl Value {
-    pub fn new(data: f32, _children: Vec<Value>, _op: Option<String>) -> Value {
+    pub fn new(data: f32, _children: Option<Vec<Value>>, _op: Option<String>) -> Value {
         Value {
             data,
-            _prev: _children.into_iter().collect(),
+            _prev: _children.unwrap_or_else(Vec::new).into_iter().collect(),
             _op,
             grad: 0.0,
         }
     }
 
-    pub fn setGrad(&mut self, grad: f32) {
+    pub fn set_grad(&mut self, grad: f32) {
         self.grad = grad;
+    }
+
+    pub fn tanh(&self) -> Value {
+        let temp =
+            (f32::exp(2.0 * self.data as f32) - 1.0) / (f32::exp(2.0 * self.data as f32) + 1.0);
+        return Value::new(temp, Some(vec![self.clone()]), Some("tanh".to_string()));
     }
 }
 
@@ -46,7 +53,7 @@ impl ops::Add<Value> for Value {
     fn add(self, _rhs: Value) -> Value {
         return Value::new(
             self.data + _rhs.data,
-            vec![self, _rhs],
+            Some(vec![self, _rhs]),
             Some("+".to_string()),
         );
     }
@@ -57,7 +64,7 @@ impl ops::Mul<Value> for Value {
     fn mul(self, _rhs: Value) -> Value {
         return Value::new(
             self.data * _rhs.data,
-            vec![self, _rhs],
+            Some(vec![self, _rhs]),
             Some("*".to_string()),
         );
     }
@@ -66,7 +73,7 @@ impl ops::Mul<Value> for Value {
 impl ops::Neg for Value {
     type Output = Value;
     fn neg(self) -> Value {
-        Value::new(-self.data, vec![self], Some("neg".to_string()))
+        Value::new(-self.data, Some(vec![self]), Some("neg".to_string()))
     }
 }
 
@@ -74,6 +81,17 @@ impl ops::Sub<Value> for Value {
     type Output = Value;
     fn sub(self, rhs: Value) -> Value {
         self + (-rhs)
+    }
+}
+
+impl ops::Div<Value> for Value {
+    type Output = Value;
+    fn div(self, rhs: Value) -> Value {
+        Value::new(
+            self.data / rhs.data,
+            Some(vec![self, rhs]),
+            Some("/".to_string()),
+        )
     }
 }
 
