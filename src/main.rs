@@ -14,7 +14,7 @@ fn df(x: f32) -> f32 {
 fn main() {
     let mut a = Value::new(2.0);
     let mut b = Value::new(-3.0);
-    println!("{}", a + b);
+    println!("{}", a - b);
 
     // let xs = Array::linspace(-5.0, 5.0, 42);
     // let ys = xs.mapv(f);
