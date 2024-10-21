@@ -40,8 +40,11 @@ impl Value {
     }
 
     pub fn set_grad(&mut self, grad: f32) {
-        println!("Setting grad to {}", grad);
         self.grad = grad;
+    }
+
+    pub fn get_grad(&self) -> f32 {
+        self.grad
     }
 
     pub fn set_backward(&mut self, backward: fn(&mut Value)) {
