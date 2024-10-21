@@ -9,6 +9,7 @@ use std::{
 pub struct Value {
     data: f32,
     grad: f32,
+    _backward: fn(&mut Value),
     _prev: HashSet<Value>,
     _op: Option<String>,
 }
@@ -34,39 +35,101 @@ impl Value {
             _prev: _children.unwrap_or_else(Vec::new).into_iter().collect(),
             _op,
             grad: 0.0,
+            _backward: |_| {},
         }
     }
 
     pub fn set_grad(&mut self, grad: f32) {
+        println!("Setting grad to {}", grad);
         self.grad = grad;
+    }
+
+    pub fn set_backward(&mut self, backward: fn(&mut Value)) {
+        self._backward = backward;
+    }
+
+    pub fn backward(&mut self) {
+        (self._backward)(self);
     }
 
     pub fn tanh(&self) -> Value {
         let temp =
             (f32::exp(2.0 * self.data as f32) - 1.0) / (f32::exp(2.0 * self.data as f32) + 1.0);
-        return Value::new(temp, Some(vec![self.clone()]), Some("tanh".to_string()));
+
+        fn backward(out: &mut Value) {
+            if let Some(lhs) = out._prev.iter().next() {
+                let mut lhs = lhs.clone();
+                lhs.set_grad(out.grad * (1.0 - out.data * out.data));
+            }
+        }
+
+        let mut out = Value::new(temp, Some(vec![self.clone()]), Some("tanh".to_string()));
+
+        out.set_backward(backward);
+        out
+    }
+
+    pub fn print_all_children(&self) {
+        for child in self._prev.iter() {
+            println!("{}", child);
+            child.print_all_children();
+        }
     }
 }
 
 impl ops::Add<Value> for Value {
     type Output = Value;
     fn add(self, _rhs: Value) -> Value {
-        return Value::new(
+        fn backward(out: &mut Value) {
+            if let Some(lhs) = out._prev.iter().next() {
+                let mut lhs = lhs.clone();
+                lhs.set_grad(1.0 * out.grad);
+            }
+
+            if let Some(rhs) = out._prev.iter().nth(1) {
+                let mut rhs = rhs.clone();
+                rhs.set_grad(1.0 * out.grad);
+            }
+        }
+
+        let mut out = Value::new(
             self.data + _rhs.data,
-            Some(vec![self, _rhs]),
+            Some(vec![self.clone(), _rhs.clone()]),
             Some("+".to_string()),
         );
+
+        out.set_backward(backward);
+        out
     }
 }
 
 impl ops::Mul<Value> for Value {
     type Output = Value;
-    fn mul(self, _rhs: Value) -> Value {
-        return Value::new(
-            self.data * _rhs.data,
-            Some(vec![self, _rhs]),
+    fn mul(self, rhs: Value) -> Value {
+        fn backward(out: &mut Value) {
+            if let Some(lhs) = out._prev.iter().next() {
+                let mut lhs = lhs.clone();
+                if let Some(rhs) = out._prev.iter().nth(1) {
+                    lhs.set_grad(out.grad * rhs.data);
+                }
+            }
+
+            if let Some(rhs) = out._prev.iter().nth(1) {
+                let mut rhs = rhs.clone();
+                if let Some(lhs) = out._prev.iter().next() {
+                    rhs.set_grad(out.grad * lhs.data);
+                }
+            }
+        }
+
+        let mut out = Value::new(
+            self.data * rhs.data,
+            Some(vec![self.clone(), rhs.clone()]),
             Some("*".to_string()),
         );
+
+        out.set_backward(backward);
+        out
     }
 }
 
@@ -87,11 +150,30 @@ impl ops::Sub<Value> for Value {
 impl ops::Div<Value> for Value {
     type Output = Value;
     fn div(self, rhs: Value) -> Value {
-        Value::new(
+        fn backward(out: &mut Value) {
+            if let Some(lhs) = out._prev.iter().next() {
+                let mut lhs = lhs.clone();
+                if let Some(rhs) = out._prev.iter().nth(1) {
+                    lhs.set_grad(out.grad / rhs.data);
+                }
+            }
+
+            if let Some(rhs) = out._prev.iter().nth(1) {
+                let mut rhs = rhs.clone();
+                if let Some(lhs) = out._prev.iter().next() {
+                    rhs.set_grad(-out.grad * lhs.data / (rhs.data * rhs.data));
+                }
+            }
+        };
+
+        let mut out = Value::new(
             self.data / rhs.data,
-            Some(vec![self, rhs]),
+            Some(vec![self.clone(), rhs.clone()]),
             Some("/".to_string()),
-        )
+        );
+
+        out.set_backward(backward);
+        out
     }
 }
 

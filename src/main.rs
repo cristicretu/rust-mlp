@@ -26,7 +26,9 @@ fn main() {
     let n = x1w1_x2w2 + b;
     let mut o = n.tanh();
     o.set_grad(1.0);
+    o.backward();
     println!("o = {}", o);
+    o.print_all_children();
 
     // --------------
 
