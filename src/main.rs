@@ -12,13 +12,13 @@ fn df(x: f32) -> f32 {
 }
 
 fn main() {
-    let x1 = Value::new(2.0, None, None);
-    let x2 = Value::new(0.0, None, None);
+    let x1 = Value::from(2.0);
+    let x2 = Value::from(0.0);
 
-    let w1 = Value::new(-3.0, None, None);
-    let w2 = Value::new(1.0, None, None);
+    let w1 = Value::from(-3.0);
+    let w2 = Value::from(1.0);
 
-    let b = Value::new(6.8813735870195432, None, None);
+    let b = Value::from(6.8813735870195432);
 
     let x1w1 = x1 * w1;
     let x2w2 = x2 * w2;
@@ -26,8 +26,8 @@ fn main() {
     let n = x1w1_x2w2 + b;
     let mut o = n.tanh();
     o.set_grad(1.0);
-    o.backward();
     println!("o = {}", o);
+    o.backward();
     o.print_all_children();
 
     // --------------

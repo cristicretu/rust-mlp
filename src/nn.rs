@@ -1,22 +1,44 @@
 use core::fmt;
+use std::ops::{self, Add, Div, Mul, Sub};
 use std::{
-    collections::HashSet,
+    cell::RefCell,
     hash::{Hash, Hasher},
-    ops,
+    rc::Rc,
 };
 
+pub struct ValueData {
+    pub data: f64,
+    pub grad: f64,
+    pub backward: Option<fn(value: &ValueData)>,
+    pub prev: Vec<Value>,
+    pub op: Option<String>,
+}
+
+impl ValueData {
+    fn new(data: f64) -> ValueData {
+        ValueData {
+            data,
+            prev: Vec::new(),
+            op: None,
+            grad: 0.0,
+            backward: None,
+        }
+    }
+}
+
 #[derive(Clone)]
-pub struct Value {
-    data: f32,
-    grad: f32,
-    _backward: fn(&mut Value),
-    _prev: HashSet<Value>,
-    _op: Option<String>,
+pub struct Value(Rc<RefCell<ValueData>>);
+
+impl ops::Deref for Value {
+    type Target = Rc<RefCell<ValueData>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
-        self.data == other.data
+        self.borrow().data == other.borrow().data
     }
 }
 
@@ -24,172 +46,122 @@ impl Eq for Value {}
 
 impl Hash for Value {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.data.to_bits().hash(state);
+        self.borrow().data.to_bits().hash(state);
     }
 }
 
 impl Value {
-    pub fn new(data: f32, _children: Option<Vec<Value>>, _op: Option<String>) -> Value {
-        Value {
-            data,
-            _prev: _children.unwrap_or_else(Vec::new).into_iter().collect(),
-            _op,
-            grad: 0.0,
-            _backward: |_| {},
-        }
+    fn new(value: ValueData) -> Value {
+        Value(Rc::new(RefCell::new(value)))
     }
+}
 
-    pub fn set_grad(&mut self, grad: f32) {
-        self.grad = grad;
+impl<T: Into<f64>> From<T> for Value {
+    fn from(t: T) -> Value {
+        Value::new(ValueData::new(t.into()))
     }
+}
+impl Value {
+    pub fn tanh(&self) -> Self {
+        let mut out = ValueData::new(self.borrow().data.tanh());
 
-    pub fn get_grad(&self) -> f32 {
-        self.grad
-    }
+        out.prev = vec![self.clone()];
+        out.op = Some(String::from("tanh"));
+        out.backward = Some(|value: &ValueData| {
+            let prev = &value.prev[0];
+            prev.borrow_mut().grad += (1.0 - value.data * value.data) * value.grad;
+        });
 
-    pub fn set_backward(&mut self, backward: fn(&mut Value)) {
-        self._backward = backward;
-    }
-
-    pub fn backward(&mut self) {
-        (self._backward)(self);
-    }
-
-    pub fn tanh(&self) -> Value {
-        let temp =
-            (f32::exp(2.0 * self.data as f32) - 1.0) / (f32::exp(2.0 * self.data as f32) + 1.0);
-
-        fn backward(out: &mut Value) {
-            if let Some(lhs) = out._prev.iter().next() {
-                let mut lhs = lhs.clone();
-                lhs.set_grad(out.grad * (1.0 - out.data * out.data));
-            }
-        }
-
-        let mut out = Value::new(temp, Some(vec![self.clone()]), Some("tanh".to_string()));
-
-        out.set_backward(backward);
-        out
+        Value::new(out)
     }
 
     pub fn print_all_children(&self) {
-        for child in self._prev.iter() {
+        for child in self.borrow().prev.iter() {
             println!("{}", child);
             child.print_all_children();
         }
     }
-}
 
-impl ops::Add<Value> for Value {
-    type Output = Value;
-    fn add(self, _rhs: Value) -> Value {
-        fn backward(out: &mut Value) {
-            if let Some(lhs) = out._prev.iter().next() {
-                let mut lhs = lhs.clone();
-                lhs.set_grad(1.0 * out.grad);
-            }
+    pub fn set_grad(&mut self, grad: f64) {
+        self.borrow_mut().grad = grad;
+    }
 
-            if let Some(rhs) = out._prev.iter().nth(1) {
-                let mut rhs = rhs.clone();
-                rhs.set_grad(1.0 * out.grad);
-            }
-        }
-
-        let mut out = Value::new(
-            self.data + _rhs.data,
-            Some(vec![self.clone(), _rhs.clone()]),
-            Some("+".to_string()),
-        );
-
-        out.set_backward(backward);
-        out
+    pub fn backward(&self) {
+        (self.borrow().backward.unwrap())(&self.borrow());
     }
 }
 
-impl ops::Mul<Value> for Value {
-    type Output = Value;
-    fn mul(self, rhs: Value) -> Value {
-        fn backward(out: &mut Value) {
-            if let Some(lhs) = out._prev.iter().next() {
-                let mut lhs = lhs.clone();
-                if let Some(rhs) = out._prev.iter().nth(1) {
-                    lhs.set_grad(out.grad * rhs.data);
-                }
-            }
+impl Add for Value {
+    type Output = Self;
+    fn add(self, _rhs: Self) -> Self {
+        let mut out = ValueData::new(self.borrow().data + _rhs.borrow().data);
+        out.prev = vec![self, _rhs];
+        out.op = Some(String::from("+"));
+        out.backward = Some(|value: &ValueData| {
+            value.prev[0].borrow_mut().grad += value.grad;
+            value.prev[1].borrow_mut().grad += value.grad;
+        });
+        Value::new(out)
+    }
+}
 
-            if let Some(rhs) = out._prev.iter().nth(1) {
-                let mut rhs = rhs.clone();
-                if let Some(lhs) = out._prev.iter().next() {
-                    rhs.set_grad(out.grad * lhs.data);
-                }
-            }
-        }
+impl Mul for Value {
+    type Output = Self;
+    fn mul(self, _rhs: Self) -> Self {
+        let mut out = ValueData::new(self.borrow().data * _rhs.borrow().data);
+        out.prev = vec![self, _rhs];
+        out.op = Some(String::from("*"));
+        out.backward = Some(|value: &ValueData| {
+            value.prev[0].borrow_mut().grad += value.grad * value.prev[1].borrow().data;
+            value.prev[1].borrow_mut().grad += value.grad * value.prev[0].borrow().data;
+        });
+        Value::new(out)
+    }
+}
 
-        let mut out = Value::new(
-            self.data * rhs.data,
-            Some(vec![self.clone(), rhs.clone()]),
-            Some("*".to_string()),
-        );
-
-        out.set_backward(backward);
-        out
+impl Div for Value {
+    type Output = Self;
+    fn div(self, _rhs: Self) -> Self {
+        let mut out = ValueData::new(self.borrow().data / _rhs.borrow().data);
+        out.prev = vec![self.clone(), _rhs.clone()];
+        out.op = Some(String::from("/"));
+        out.backward = Some(|value: &ValueData| {
+            value.prev[0].borrow_mut().grad += value.grad / value.prev[1].borrow().data;
+            value.prev[1].borrow_mut().grad += -value.grad * value.prev[0].borrow().data
+                / (value.prev[1].borrow().data * value.prev[1].borrow().data);
+        });
+        Value::new(out)
     }
 }
 
 impl ops::Neg for Value {
-    type Output = Value;
-    fn neg(self) -> Value {
-        Value::new(-self.data, Some(vec![self]), Some("neg".to_string()))
+    type Output = Self;
+    fn neg(self) -> Self {
+        let mut out = ValueData::new(-self.borrow().data);
+        out.prev = vec![self.clone()];
+        out.op = Some(String::from("neg"));
+        Value::new(out)
     }
 }
 
-impl ops::Sub<Value> for Value {
-    type Output = Value;
-    fn sub(self, rhs: Value) -> Value {
-        self + (-rhs)
-    }
-}
-
-impl ops::Div<Value> for Value {
-    type Output = Value;
-    fn div(self, rhs: Value) -> Value {
-        fn backward(out: &mut Value) {
-            if let Some(lhs) = out._prev.iter().next() {
-                let mut lhs = lhs.clone();
-                if let Some(rhs) = out._prev.iter().nth(1) {
-                    lhs.set_grad(out.grad / rhs.data);
-                }
-            }
-
-            if let Some(rhs) = out._prev.iter().nth(1) {
-                let mut rhs = rhs.clone();
-                if let Some(lhs) = out._prev.iter().next() {
-                    rhs.set_grad(-out.grad * lhs.data / (rhs.data * rhs.data));
-                }
-            }
-        };
-
-        let mut out = Value::new(
-            self.data / rhs.data,
-            Some(vec![self.clone(), rhs.clone()]),
-            Some("/".to_string()),
-        );
-
-        out.set_backward(backward);
-        out
+impl Sub for Value {
+    type Output = Self;
+    fn sub(self, _rhs: Self) -> Self {
+        self + (-_rhs)
     }
 }
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Value({:.4}", self.data)?;
-        if !self._prev.is_empty() {
+        write!(f, "Value({:.4}", self.borrow().data)?;
+        if !self.borrow().prev.is_empty() {
             write!(f, ", prev=[")?;
-            let mut iter = self._prev.iter();
+            let prev = self.borrow();
+            let mut iter = prev.prev.iter();
             if let Some(first) = iter.next() {
-                write!(f, "{:.4}", first.data)?;
+                write!(f, "{:.4}", first.borrow().data)?;
                 for value in iter {
-                    write!(f, ", {:.4}", value.data)?;
+                    write!(f, ", {:.4}", value.borrow().data)?;
                 }
             }
             write!(f, "],")?;
@@ -197,9 +169,9 @@ impl fmt::Display for Value {
         write!(
             f,
             " op={:?}",
-            self._op.as_ref().unwrap_or(&"None".to_string()),
+            self.borrow().op.as_ref().unwrap_or(&"None".to_string()),
         )?;
-        write!(f, ", grad={:.4}", self.grad)?;
+        write!(f, ", grad={:.4}", self.borrow().grad)?;
         write!(f, ")")
     }
 }
