@@ -2,7 +2,7 @@ mod value;
 use value::Value;
 
 mod nn;
-use nn::{Layer, Neuron};
+use nn::{Layer, Neuron, MLP};
 // use ndarray::Array;
 
 // fn f(x: f32) -> f32 {
@@ -31,8 +31,36 @@ fn main() {
     // println!("o = {}", o);
     // o.print_all();
 
-    let n = Layer::new(3, 1);
-    println!("{:?}", n);
+    let n = MLP::new(3, vec![4, 4, 1]);
+    let xs = vec![
+        vec![2.0, 3.0, -1.0],
+        vec![3.0, -1.0, 0.5],
+        vec![0.5, 1.0, 1.0],
+        vec![1.0, 1.0, -1.0],
+    ];
+    let ys = vec![1.0, -1.0, -1.0, 1.0];
+    let ypred = n.forward(&xs);
+    println!("ypred = [");
+    for pred in ypred.iter() {
+        println!("  {:.4}", pred[0].borrow().data);
+    }
+    println!("]");
+
+    // Calculate loss (e.g., mean squared error)
+    let mut loss = Value::from(0.0);
+    // for (y_pred, y) in ypred.iter().zip(ys.iter()) {
+    //     loss = loss + (&*y_pred[0] - &Value::from(*y)).pow(2.0);
+    // }
+    // loss = loss / Value::from(ys.len() as f32);
+
+    // Backward pass
+    // loss.backward();
+
+    // Print the loss
+    println!("Loss: {}", loss.borrow().data);
+
+    // Optionally, print gradients of parameters
+    // n.print_gradients();
 
     // --------------
 

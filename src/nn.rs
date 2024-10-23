@@ -1,4 +1,6 @@
 use crate::value::Value;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Neuron {
@@ -16,7 +18,7 @@ impl Neuron {
         }
     }
 
-    pub fn activation(&self, x: Vec<Value>) -> Value {
+    pub fn forward(&self, x: Vec<Value>) -> Value {
         let mut n = self.bias.clone();
         for i in 0..self.weights.len() {
             n = n + x[i].clone() * Value::from(self.weights[i]);
@@ -37,11 +39,8 @@ impl Layer {
         }
     }
 
-    pub fn activation(&self, x: Vec<Value>) -> Vec<Value> {
-        self.neurons
-            .iter()
-            .map(|n| n.activation(x.clone()))
-            .collect()
+    pub fn forward(&self, x: Vec<Value>) -> Vec<Value> {
+        self.neurons.iter().map(|n| n.forward(x.clone())).collect()
     }
 }
 
@@ -61,11 +60,15 @@ impl MLP {
         MLP { layers }
     }
 
-    pub fn activation(&self, x: Vec<Value>) -> Vec<Value> {
-        let mut x = x;
-        for layer in &self.layers {
-            x = layer.activation(x);
-        }
-        x
+    pub fn forward(&self, xs: &Vec<Vec<f64>>) -> Vec<Vec<Value>> {
+        xs.iter()
+            .map(|x| {
+                let mut out = x.iter().map(|&xi| Value::from(xi)).collect::<Vec<Value>>();
+                for layer in &self.layers {
+                    out = layer.forward(out);
+                }
+                out
+            })
+            .collect()
     }
 }
