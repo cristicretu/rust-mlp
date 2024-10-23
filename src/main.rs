@@ -1,29 +1,15 @@
 mod nn;
-use std::collections::HashMap;
-
 use nn::Value;
 
-use ndarray::Array;
+// use ndarray::Array;
 
-fn f(x: f32) -> f32 {
-    return x.powf(2.0) * 3.0 - 4.0 * x + 5.0;
-}
+// fn f(x: f32) -> f32 {
+//     return x.powf(2.0) * 3.0 - 4.0 * x + 5.0;
+// }
 
-fn df(x: f32) -> f32 {
-    return 6.0 * x - 4.0;
-}
-
-fn build_topo(topo: &mut Vec<Value>, visited: &mut HashMap<Value, bool>, v: Value) {
-    if visited.get(&v) == Some(&true) {
-        return;
-    }
-
-    visited.insert(v.clone(), true);
-    for child in v.borrow().prev.iter() {
-        build_topo(topo, visited, child.clone());
-    }
-    topo.push(v);
-}
+// fn df(x: f32) -> f32 {
+//     return 6.0 * x - 4.0;
+// }
 
 fn main() {
     let x1 = Value::from(2.0);
@@ -38,11 +24,9 @@ fn main() {
     let x2w2 = x2 * w2;
     let x1w1_x2w2 = x1w1 + x2w2;
     let n = x1w1_x2w2 + b;
-    let mut o = n.tanh();
-    o.set_grad(1.0);
-    println!("o = {}", o);
+    let o = n.tanh();
     o.backward();
-    n.backward();
+    println!("o = {}", o);
     o.print_all();
 
     // --------------

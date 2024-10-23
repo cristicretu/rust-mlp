@@ -1,11 +1,14 @@
 use core::fmt;
 use std::collections::HashSet;
 use std::ops::{self, Add, Div, Mul, Sub};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{
     cell::RefCell,
     hash::{Hash, Hasher},
     rc::Rc,
 };
+
+static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 pub struct ValueData {
     pub data: f64,
@@ -13,6 +16,7 @@ pub struct ValueData {
     pub backward: Option<fn(value: &ValueData)>,
     pub prev: Vec<Value>,
     pub op: Option<String>,
+    pub id: usize,
 }
 
 impl ValueData {
@@ -23,6 +27,7 @@ impl ValueData {
             op: None,
             grad: 0.0,
             backward: None,
+            id: COUNTER.fetch_add(1, Ordering::Relaxed),
         }
     }
 }
@@ -39,7 +44,7 @@ impl ops::Deref for Value {
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
-        self.borrow().data == other.borrow().data
+        self.borrow().id == other.borrow().id
     }
 }
 
@@ -47,7 +52,7 @@ impl Eq for Value {}
 
 impl Hash for Value {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.borrow().data.to_bits().hash(state);
+        self.borrow().id.hash(state);
     }
 }
 
@@ -85,9 +90,9 @@ impl Value {
 
     fn _build_topo(&self, topo: &mut Vec<Value>, visited: &mut HashSet<Value>) {
         if visited.insert(self.clone()) {
-            self.borrow().prev.iter().for_each(|child| {
+            for child in &self.borrow().prev {
                 child._build_topo(topo, visited);
-            });
+            }
             topo.push(self.clone());
         }
     }
