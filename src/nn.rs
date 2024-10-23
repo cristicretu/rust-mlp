@@ -253,7 +253,7 @@ impl Mul<i32> for Value {
 impl Div for Value {
     type Output = Self;
     fn div(self, _rhs: Self) -> Self {
-        let mut out = ValueData::new(self.borrow().data / _rhs.borrow().data);
+        let mut out = ValueData::new(self.borrow().data * _rhs.borrow().data.powf(-1.0));
         out.prev = vec![self.clone(), _rhs.clone()];
         out.op = Some(String::from("/"));
         out.backward = Some(|value: &ValueData| {
