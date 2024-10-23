@@ -1,11 +1,9 @@
 use crate::value::Value;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Neuron {
-    weights: Vec<f64>,
-    bias: Value,
+    pub weights: Vec<f64>,
+    pub bias: Value,
 }
 
 impl Neuron {
@@ -29,7 +27,7 @@ impl Neuron {
 
 #[derive(Debug)]
 pub struct Layer {
-    neurons: Vec<Neuron>,
+    pub neurons: Vec<Neuron>,
 }
 
 impl Layer {
@@ -46,7 +44,7 @@ impl Layer {
 
 #[derive(Debug)]
 pub struct MLP {
-    layers: Vec<Layer>,
+    pub layers: Vec<Layer>,
 }
 
 impl MLP {

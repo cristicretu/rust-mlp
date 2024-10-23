@@ -1,8 +1,10 @@
 mod value;
+use std::borrow::BorrowMut;
+
 use value::Value;
 
 mod nn;
-use nn::{Layer, Neuron, MLP};
+use nn::MLP;
 // use ndarray::Array;
 
 // fn f(x: f32) -> f32 {
@@ -39,6 +41,8 @@ fn main() {
         vec![1.0, 1.0, -1.0],
     ];
     let ys = vec![1.0, -1.0, -1.0, 1.0];
+
+    // Forward pass
     let ypred = n.forward(&xs);
     println!("ypred = [");
     for pred in ypred.iter() {
@@ -48,16 +52,19 @@ fn main() {
 
     // Calculate loss (e.g., mean squared error)
     let mut loss = Value::from(0.0);
-    // for (y_pred, y) in ypred.iter().zip(ys.iter()) {
-    //     loss = loss + (&*y_pred[0] - &Value::from(*y)).pow(2.0);
-    // }
-    // loss = loss / Value::from(ys.len() as f32);
+    for (pred, y) in ypred.iter().zip(ys.iter()) {
+        // loss = loss + (&*pred[0] - &Value::from(*y)).pow(2.0);
+        println!("pred = {}", pred[0].borrow().data);
+        println!("y = {}", y);
 
+        loss = loss + (pred[0].borrow().data - y).powf(2.0);
+    }
     // Backward pass
-    // loss.backward();
+    loss.backward();
 
     // Print the loss
     println!("Loss: {}", loss.borrow().data);
+    println!("Gradient: {}", n.layers[0].neurons[0].weights[0]);
 
     // Optionally, print gradients of parameters
     // n.print_gradients();
