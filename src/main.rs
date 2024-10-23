@@ -1,4 +1,6 @@
 mod nn;
+use std::collections::HashMap;
+
 use nn::Value;
 
 use ndarray::Array;
@@ -9,6 +11,18 @@ fn f(x: f32) -> f32 {
 
 fn df(x: f32) -> f32 {
     return 6.0 * x - 4.0;
+}
+
+fn build_topo(topo: &mut Vec<Value>, visited: &mut HashMap<Value, bool>, v: Value) {
+    if visited.get(&v) == Some(&true) {
+        return;
+    }
+
+    visited.insert(v.clone(), true);
+    for child in v.borrow().prev.iter() {
+        build_topo(topo, visited, child.clone());
+    }
+    topo.push(v);
 }
 
 fn main() {
@@ -28,7 +42,8 @@ fn main() {
     o.set_grad(1.0);
     println!("o = {}", o);
     o.backward();
-    o.print_all_children();
+    n.backward();
+    o.print_all();
 
     // --------------
 
