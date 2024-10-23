@@ -1,6 +1,8 @@
-mod nn;
-use nn::Value;
+mod value;
+use value::Value;
 
+mod nn;
+use nn::{Layer, Neuron};
 // use ndarray::Array;
 
 // fn f(x: f32) -> f32 {
@@ -12,22 +14,25 @@ use nn::Value;
 // }
 
 fn main() {
-    let x1 = Value::from(2.0);
-    let x2 = Value::from(0.0);
+    // let x1 = Value::from(2.0);
+    // let x2 = Value::from(0.0);
 
-    let w1 = Value::from(-3.0);
-    let w2 = Value::from(1.0);
+    // let w1 = Value::from(-3.0);
+    // let w2 = Value::from(1.0);
 
-    let b = Value::from(6.8813735870195432);
+    // let b = Value::from(6.8813735870195432);
 
-    let x1w1 = x1 * w1;
-    let x2w2 = x2 * w2;
-    let x1w1_x2w2 = x1w1 + x2w2;
-    let n = x1w1_x2w2 + b;
-    let o = n.tanh();
-    o.backward();
-    println!("o = {}", o);
-    o.print_all();
+    // let x1w1 = x1 * w1;
+    // let x2w2 = x2 * w2;
+    // let x1w1_x2w2 = x1w1 + x2w2;
+    // let n = x1w1_x2w2 + b;
+    // let o = n.tanh();
+    // o.backward();
+    // println!("o = {}", o);
+    // o.print_all();
+
+    let n = Layer::new(3, 1);
+    println!("{:?}", n);
 
     // --------------
 
