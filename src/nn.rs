@@ -81,6 +81,34 @@ impl Value {
         Value::new(out)
     }
 
+    pub fn exp(&self) -> Self {
+        let mut out = ValueData::new(self.borrow().data.exp());
+
+        out.prev = vec![self.clone()];
+        out.op = Some(String::from("exp"));
+        out.backward = Some(|value: &ValueData| {
+            let prev = &value.prev[0];
+            prev.borrow_mut().grad += value.grad * value.data.exp();
+        });
+
+        Value::new(out)
+    }
+
+    pub fn pow<T: Into<f64>>(&self, power: T) -> Self {
+        let power_f64: f64 = power.into();
+        let mut out = ValueData::new(self.borrow().data.powf(power_f64));
+
+        out.prev = vec![self.clone(), Value::from(power_f64)];
+        out.op = Some(String::from("pow"));
+        out.backward = Some(|value: &ValueData| {
+            let base = value.prev[0].borrow().data;
+            let exp = value.prev[1].borrow().data;
+            value.prev[0].borrow_mut().grad += value.grad * exp * base.powf(exp - 1.0);
+        });
+
+        Value::new(out)
+    }
+
     fn build_topo(&self) -> Vec<Value> {
         let mut topo: Vec<Value> = vec![];
         let mut visited: HashSet<Value> = HashSet::new();
