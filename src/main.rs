@@ -1,19 +1,22 @@
 mod value;
-use std::borrow::BorrowMut;
 
 use value::Value;
 
 mod nn;
 use nn::MLP;
-// use ndarray::Array;
 
-// fn f(x: f32) -> f32 {
-//     return x.powf(2.0) * 3.0 - 4.0 * x + 5.0;
-// }
-
-// fn df(x: f32) -> f32 {
-//     return 6.0 * x - 4.0;
-// }
+fn calc_loss(n: &MLP, xs: &Vec<Vec<f64>>, ys: &Vec<f64>) -> Value {
+    let ypred = n.forward(xs);
+    let mut loss = Value::from(0.0);
+    for (pred, y) in ypred.iter().zip(ys.iter()) {
+        let y_val = Value::from(*y);
+        // Clone or dereference appropriately
+        let pred_val = pred[0].clone(); // assuming Value implements Clone
+        let diff = pred_val - y_val; // now both are owned Values
+        loss = loss + diff.pow(2.0);
+    }
+    loss
+}
 
 fn main() {
     // let x1 = Value::from(2.0);
@@ -42,32 +45,35 @@ fn main() {
     ];
     let ys = vec![1.0, -1.0, -1.0, 1.0];
 
-    // Forward pass
-    let ypred = n.forward(&xs);
-    println!("ypred = [");
-    for pred in ypred.iter() {
-        println!("  {:.4}", pred[0].borrow().data);
+    let num_epochs = 1000;
+    let step_size = 0.01;
+
+    for epoch in 0..num_epochs {
+        let loss = calc_loss(&n, &xs, &ys);
+        println!("Epoch {}, loss = {}", epoch, loss.borrow().data);
+
+        loss.backward();
+
+        // println!("Gradients after backward:");
+        // for (i, p) in n.parameters().iter().enumerate() {
+        //     println!("  Parameter {}: grad = {}", i, p.borrow().grad);
+        // }
+
+        for p in n.parameters() {
+            let grad = p.borrow().grad;
+            p.borrow_mut().data += -step_size * grad;
+        }
+
+        // println!("Updated parameters:");
+        // for (i, p) in n.parameters().iter().enumerate() {
+        //     println!("  Parameter {}: data = {}", i, p.borrow().data);
+        // }
+
+        // Zero out gradients for the next iteration
+        for p in n.parameters() {
+            p.borrow_mut().grad = 0.0;
+        }
     }
-    println!("]");
-
-    // Calculate loss (e.g., mean squared error)
-    let mut loss = Value::from(0.0);
-    for (pred, y) in ypred.iter().zip(ys.iter()) {
-        // loss = loss + (&*pred[0] - &Value::from(*y)).pow(2.0);
-        println!("pred = {}", pred[0].borrow().data);
-        println!("y = {}", y);
-
-        loss = loss + (pred[0].borrow().data - y).powf(2.0);
-    }
-    // Backward pass
-    loss.backward();
-
-    // Print the loss
-    println!("Loss: {}", loss.borrow().data);
-    println!("Gradient: {}", n.layers[0].neurons[0].weights[0]);
-
-    // Optionally, print gradients of parameters
-    // n.print_gradients();
 
     // --------------
 

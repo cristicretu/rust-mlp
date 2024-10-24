@@ -23,6 +23,12 @@ impl Neuron {
         }
         n.tanh()
     }
+
+    pub fn parameters(&self) -> Vec<Value> {
+        let mut params = vec![self.bias.clone()];
+        params.extend(self.weights.iter().map(|w| w.clone().into()));
+        params
+    }
 }
 
 #[derive(Debug)]
@@ -39,6 +45,10 @@ impl Layer {
 
     pub fn forward(&self, x: Vec<Value>) -> Vec<Value> {
         self.neurons.iter().map(|n| n.forward(x.clone())).collect()
+    }
+
+    pub fn parameters(&self) -> Vec<Value> {
+        self.neurons.iter().flat_map(|n| n.parameters()).collect()
     }
 }
 
@@ -68,5 +78,9 @@ impl MLP {
                 out
             })
             .collect()
+    }
+
+    pub fn parameters(&self) -> Vec<Value> {
+        self.layers.iter().flat_map(|l| l.parameters()).collect()
     }
 }
